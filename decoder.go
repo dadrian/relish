@@ -5,7 +5,7 @@ import (
 	"io"
 	"reflect"
 
-	intr "github.com/dadrian/relish/relish/internal"
+	intr "github.com/dadrian/relish/internal"
 )
 
 // Decoder reads Relish-encoded values from an io.Reader.

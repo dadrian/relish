@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sort"
 
-	intr "github.com/dadrian/relish/relish/internal"
+	intr "github.com/dadrian/relish/internal"
 )
 
 // Encoder writes Relish-encoded values to an io.Writer.

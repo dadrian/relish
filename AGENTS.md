@@ -1,11 +1,9 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- Root: Go module `github.com/dadrian/relish` with `SPEC.md` and docs.
-- Library code: `relish/` (public API: Marshal/Unmarshal, Encoder/Decoder).
-- Internals: single package `relish/internal/` split by files (e.g., `lengths.go`, `binary.go`, `reflectx.go`, `buffers.go`). Keep shared helpers here, unexported.
-- Tests: `*_test.go` next to code; golden vectors in `relish/testdata/`.
-- Assets: `motivation.png` (docs only). Keep non-code files out of `relish/`.
+- Root: Go module `github.com/dadrian/relish` with `SPEC.md` and docs and importable library code (public API: Marshal/Unmarshal, Encoder/Decoder).
+- Internals: single package `internal/` split by files (e.g., `lengths.go`, `binary.go`, `reflectx.go`, `buffers.go`). Keep shared helpers here, unexported.
+- Tests: `*_test.go` next to code; golden vectors in `testdata/`.
 
 ## Build, Test, and Development Commands
 - Build: `go build ./...` — verify package compiles.
