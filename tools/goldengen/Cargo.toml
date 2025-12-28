@@ -1,0 +1,7 @@
+[package]
+name = "goldengen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+relish = "0.1.0"

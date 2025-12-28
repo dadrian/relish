@@ -4,6 +4,7 @@
 - Root: Go module `github.com/dadrian/relish` with `SPEC.md` and docs and importable library code (public API: Marshal/Unmarshal, Encoder/Decoder).
 - Internals: single package `internal/` split by files (e.g., `lengths.go`, `binary.go`, `reflectx.go`, `buffers.go`). Keep shared helpers here, unexported.
 - Tests: `*_test.go` next to code; golden vectors in `testdata/`.
+- Tools: tools/ folder. Ignore this for now.
 
 ## Build, Test, and Development Commands
 - Build: `go build ./...` — verify package compiles.
