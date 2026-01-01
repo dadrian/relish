@@ -185,33 +185,93 @@ func ReadStringTLV(r io.Reader) (string, error) {
 	return string(buf), nil
 }
 
+// ArrayContents describes array elements that can report their encoded length.
+type ArrayContents interface {
+	// ContentLen returns the total number of bytes required to encode the elements.
+	// It should exclude the leading element type byte.
+	ContentLen() (int, error)
+	WriteTo(io.Writer) error
+}
+
+// FixedArrayContents describes a fixed-size array payload.
+type FixedArrayContents struct {
+	ElemSize int
+	Count    int
+	Write    func(io.Writer) error
+}
+
+// ContentLen returns ElemSize*Count, validating for overflow and range.
+func (a FixedArrayContents) ContentLen() (int, error) {
+	if a.ElemSize < 0 || a.Count < 0 {
+		return 0, errors.New("array content length out of range")
+	}
+	if a.ElemSize == 0 || a.Count == 0 {
+		return 0, nil
+	}
+	if a.ElemSize > MaxLen/a.Count {
+		return 0, errors.New("array content length out of range")
+	}
+	return a.ElemSize * a.Count, nil
+}
+
+func (a FixedArrayContents) WriteTo(w io.Writer) error {
+	if a.Write == nil {
+		return nil
+	}
+	return a.Write(w)
+}
+
+// SizedArrayContents describes an array payload with a caller-provided size function.
+type SizedArrayContents struct {
+	Size  func() (int, error)
+	Write func(io.Writer) error
+}
+
+// ContentLen returns the size from the Size callback.
+func (a SizedArrayContents) ContentLen() (int, error) {
+	if a.Size == nil {
+		return 0, errors.New("array content size function is nil")
+	}
+	return a.Size()
+}
+
+func (a SizedArrayContents) WriteTo(w io.Writer) error {
+	if a.Write == nil {
+		return nil
+	}
+	return a.Write(w)
+}
+
 // WriteArrayTLV writes an array TLV.
 // Layout: [0x0F][len][element_type_id][elements...]
-// The writeElems closure should write element content only:
+// The content should write element content only:
 // - For fixed-size element types: raw value bytes for each element
 // - For varsize element types: [len][content] for each element (no type byte)
-func WriteArrayTLV(w io.Writer, elemType byte, writeElems func(io.Writer) error) error {
+func WriteArrayTLV(w io.Writer, elemType byte, content ArrayContents) error {
 	if elemType&0x80 != 0 {
 		return errInvalidTypeID
 	}
-	// Buffer content to compute length
-	buf := GetBuffer()
-	defer PutBuffer(buf)
-	// element type id
-	if err := WriteType(buf, elemType); err != nil {
+	if content == nil {
+		return errors.New("array contents are required")
+	}
+	contentLen, err := content.ContentLen()
+	if err != nil {
 		return err
 	}
-	if err := writeElems(buf); err != nil {
-		return err
+	if contentLen < 0 || contentLen > MaxLen-1 {
+		return errors.New("array content length out of range")
 	}
+	payloadLen := 1 + contentLen
 	if err := WriteType(w, 0x0F); err != nil {
 		return err
 	}
-	if _, err := WriteLen(w, buf.Len()); err != nil {
+	if _, err := WriteLen(w, payloadLen); err != nil {
 		return err
 	}
-	_, err := w.Write(buf.Bytes())
-	return err
+	if err := WriteType(w, elemType); err != nil {
+		return err
+	}
+	return content.WriteTo(w)
 }
 
 // ReadArrayTLV reads an array TLV and returns the element type ID and the raw element payload bytes.

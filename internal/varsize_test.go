@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"testing"
 )
@@ -25,15 +26,19 @@ func TestStringTLV(t *testing.T) {
 func TestArrayTLV_FixedElements(t *testing.T) {
 	var buf bytes.Buffer
 	// Array of two u32: 1, 2
-	err := WriteArrayTLV(&buf, 0x04, func(w io.Writer) error {
-		var b [4]byte
-		binary.LittleEndian.PutUint32(b[:], 1)
-		if _, err := w.Write(b[:]); err != nil {
+	err := WriteArrayTLV(&buf, 0x04, FixedArrayContents{
+		ElemSize: 4,
+		Count:    2,
+		Write: func(w io.Writer) error {
+			var b [4]byte
+			binary.LittleEndian.PutUint32(b[:], 1)
+			if _, err := w.Write(b[:]); err != nil {
+				return err
+			}
+			binary.LittleEndian.PutUint32(b[:], 2)
+			_, err := w.Write(b[:])
 			return err
-		}
-		binary.LittleEndian.PutUint32(b[:], 2)
-		_, err := w.Write(b[:])
-		return err
+		},
 	})
 	if err != nil {
 		t.Fatalf("write array: %v", err)
@@ -64,18 +69,27 @@ func TestArrayTLV_FixedElements(t *testing.T) {
 func TestArrayTLV_VarElementsString(t *testing.T) {
 	var buf bytes.Buffer
 	// Array of two strings: "a", "bc"
-	err := WriteArrayTLV(&buf, 0x0E, func(w io.Writer) error {
-		if _, err := WriteLen(w, 1); err != nil {
+	err := WriteArrayTLV(&buf, 0x0E, SizedArrayContents{
+		Size: func() (int, error) {
+			size := SizeOfLen(1) + 1 + SizeOfLen(2) + 2
+			if size < 0 {
+				return 0, errors.New("invalid size")
+			}
+			return size, nil
+		},
+		Write: func(w io.Writer) error {
+			if _, err := WriteLen(w, 1); err != nil {
+				return err
+			}
+			if _, err := w.Write([]byte("a")); err != nil {
+				return err
+			}
+			if _, err := WriteLen(w, 2); err != nil {
+				return err
+			}
+			_, err := w.Write([]byte("bc"))
 			return err
-		}
-		if _, err := w.Write([]byte("a")); err != nil {
-			return err
-		}
-		if _, err := WriteLen(w, 2); err != nil {
-			return err
-		}
-		_, err := w.Write([]byte("bc"))
-		return err
+		},
 	})
 	if err != nil {
 		t.Fatalf("write array: %v", err)
